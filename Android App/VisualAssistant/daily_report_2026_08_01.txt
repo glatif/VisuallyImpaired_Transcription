@@ -1,0 +1,22 @@
+DAILY PROGRESS REPORT - AUGUST 01, 2026
+
+Work Done Today:
+
+* Resolved Model Initialization Bottleneck: Successfully overcame the "single-turn" limitation of the MNN framework. By implementing a Robust Memory Reset logic in the JNI bridge, we bypassed the framework’s tendency to lock after one generation. This allowed the 700MB model weights to remain resident in memory, enabling the prototype to process sequential frames without the massive overhead of reinitializing for every caption.
+* Optimized Image Processing Pipeline: Significant performance gains were achieved by aligning the Kotlin-side preprocessing with the model’s native requirements. We shifted image resizing to 1024x1024 and optimized the bitmap configuration to RGB_565 (reducing memory usage by 50%). This eliminated redundant upscaling cycles in C++ and stabilized the app against Out-of-Memory (OOM) failures.
+* Hardware-Specific Tuning for Pixel 8: Optimized the inference execution for the Google Tensor G3. Through benchmarking, we confirmed that configuring the engine to use 5 performance cores provided the maximum throughput for the Vision Transformer and LLM decoder.
+* Resolved Low-Level Crashes (SIGSEGV): Fixed a critical instability caused by a memory layout mismatch. This was achieved by synchronizing the build environment headers with the exact binary commit (fba2bc9) of the prebuilt MNN libraries.
+* Demonstrated Sequential Captioning: Successfully validated the end-to-end pipeline. The app progressed from "one-shot" generation to a continuous capture loop, where captions were correctly generated and displayed in the UI for consecutive camera frames.
+
+Challenges Faced:
+
+* MNN Framework Instability: The internal state machine of MNN 0.8.2 is not natively designed for continuous multimodal video streams. Despite successful manual memory resets, the framework remains fragile and prone to deep-state deadlocks that are difficult to recover from without a full reload.
+* Vision Latency on CPU: While optimized, the Vision Encoder phase on CPU takes roughly 4–6 seconds. This represents a "hard wall" for real-time assistive applications, as the CPU cannot meet the sub-2-second target required for smooth user feedback.
+
+Plan for Next Steps:
+
+* Architectural Pivot to llama.cpp: Due to the persistent bugs and lack of transparency in MNN’s internal state handling, the project will transition to llama.cpp. This framework offers a more mature JNI interface, better multimodal (LLAVA) support, and a stable reset mechanism for continuous loops.
+* Vulkan GPU Acceleration: Use llama.cpp’s stable Vulkan backend to shift the Vision Transformer workload to the Tensor G3 GPU, with the goal of reducing frame-to-caption latency from ~8 seconds to under 2 seconds.
+* Model Format Migration: Convert the existing weights to the GGUF format to leverage the advanced quantization (Q4_K_M) and memory-mapping capabilities of the new backend.
+
+Status: The prototype has proven that on-device continuous captioning is possible on the Pixel 8. The move to llama.cpp will provide the production-grade stability and GPU support needed to transition from a research prototype to a usable assistive tool.
